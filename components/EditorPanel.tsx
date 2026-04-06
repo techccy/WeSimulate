@@ -11,6 +11,7 @@ interface EditorPanelProps {
   onToggleComments: () => void;
   onSaveDraft: () => void;
   onShowLoginModal?: () => void;
+  onReset: () => void;
 }
 
 export default function EditorPanel({
@@ -20,6 +21,7 @@ export default function EditorPanel({
   onToggleComments,
   onSaveDraft,
   onShowLoginModal,
+  onReset,
 }: EditorPanelProps) {
   const [uploading, setUploading] = useState(false);
   const { user } = useAuth();
@@ -237,12 +239,20 @@ export default function EditorPanel({
     <div className="editor-panel w-full max-w-md bg-white p-6 rounded-lg shadow-md">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-bold">编辑面板</h2>
-        <button
-          onClick={onSaveDraft}
-          className="text-sm bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600"
-        >
-          保存草稿
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={onReset}
+            className="text-sm bg-gray-500 text-white px-3 py-1 rounded hover:bg-gray-600"
+          >
+            一键重置
+          </button>
+          <button
+            onClick={onSaveDraft}
+            className="text-sm bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600"
+          >
+            保存草稿
+          </button>
+        </div>
       </div>
 
       <div className="space-y-4">
@@ -339,7 +349,7 @@ export default function EditorPanel({
             value={data.likes.join("\n")}
             onChange={(e) => handleLikesChange(e.target.value)}
             className="w-full border rounded px-3 py-2 h-24 resize-none"
-            placeholder="如：张三&#10;李四&#10;王五"
+            placeholder="输入点赞人，每行一个"
           />
         </div>
 

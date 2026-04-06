@@ -16,7 +16,7 @@ const defaultData: MomentPost = {
   images: [],
   location: "",
   timestamp: "1分钟前",
-  likes: ["点赞人1", "点赞人2", "点赞人3"],
+  likes: [],
   comments: [],
 };
 
@@ -187,6 +187,7 @@ export default function Home() {
                 onToggleComments={() => setShowComments(!showComments)}
                 onSaveDraft={handleSaveDraft}
                 onShowLoginModal={() => { setAuthMode("login"); setAuthModalOpen(true); }}
+                onReset={() => setData(defaultData)}
               />
 
               <div className="sticky top-8">
