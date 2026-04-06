@@ -4,6 +4,8 @@ import { useState, useRef } from "react";
 import html2canvas from "html2canvas";
 import MomentPreview from "@/components/MomentPreview";
 import EditorPanel from "@/components/EditorPanel";
+import AuthModal from "@/components/AuthModal";
+import { useAuth } from "@/contexts/AuthContext";
 import { MomentPost } from "@/types";
 
 const defaultData: MomentPost = {
@@ -12,7 +14,7 @@ const defaultData: MomentPost = {
   content: "内容",
   images: [],
   location: "",
-  timestamp: "29分钟前",
+  timestamp: "1分钟前",
   likes: ["点赞人1", "点赞人2", "点赞人3"],
   comments: [
     { user: "评论人1", text: "评论内容1" },
@@ -31,9 +33,17 @@ export default function Home() {
   const [data, setData] = useState<MomentPost>(defaultData);
   const [showComments, setShowComments] = useState(true);
   const [deviceType, setDeviceType] = useState<keyof typeof DEVICE_WIDTHS>("mobile");
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authMode, setAuthMode] = useState<"login" | "register">("login");
   const previewRef = useRef<HTMLDivElement>(null);
+  const { user, loading, logout } = useAuth();
 
   const handleExport = async () => {
+    if (!user) {
+      setAuthModalOpen(true);
+      return;
+    }
+
     if (!previewRef.current) return;
 
     try {
@@ -81,7 +91,39 @@ export default function Home() {
     <main className="min-h-screen py-8 px-4">
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold mb-2">WeSimulate</h1>
+          <div className="flex items-center justify-between mb-4">
+            <h1 className="text-3xl font-bold">WeSimulate</h1>
+            {!loading && (
+              <div className="flex items-center gap-3">
+                {user ? (
+                  <div className="flex items-center gap-3">
+                    <span className="text-gray-700">欢迎, {user.username}</span>
+                    <button
+                      onClick={logout}
+                      className="text-sm text-red-500 hover:text-red-600"
+                    >
+                      退出
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => { setAuthMode("login"); setAuthModalOpen(true); }}
+                      className="text-sm text-blue-500 hover:text-blue-600 px-3 py-1 border border-blue-500 rounded"
+                    >
+                      登录
+                    </button>
+                    <button
+                      onClick={() => { setAuthMode("register"); setAuthModalOpen(true); }}
+                      className="text-sm bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
+                    >
+                      注册
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
           <p className="text-gray-600">朋友圈模拟生成器</p>
         </div>
 
@@ -99,7 +141,12 @@ export default function Home() {
                 <h2 className="text-xl font-bold">预览</h2>
                 <button
                   onClick={handleExport}
-                  className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors"
+                  className={`px-4 py-2 rounded transition-colors ${
+                    user
+                      ? "bg-blue-500 text-white hover:bg-blue-600"
+                      : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                  }`}
+                  disabled={!user}
                 >
                   导出图片
                 </button>
@@ -131,10 +178,22 @@ export default function Home() {
                   />
                 </div>
               </div>
+
+              {!user && (
+                <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-center text-yellow-800 text-sm">
+                  请先注册/登录
+                </div>
+              )}
             </div>
           </div>
         </div>
       </div>
+
+      <AuthModal
+        isOpen={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+        mode={authMode}
+      />
     </main>
   );
 }

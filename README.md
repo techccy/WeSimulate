@@ -4,6 +4,13 @@
 
 ## 功能特性
 
+### 用户认证模块
+- ✅ 用户注册（用户名 + 密码确认）
+- ✅ 用户登录
+- ✅ JWT 令牌认证
+- ✅ 未登录禁止导出图片
+- ✅ 预览框下方提示"请先注册/登录"
+
 ### 编辑器模块
 - ✅ 上传头像（支持 Base64 编码）
 - ✅ 自定义昵称
@@ -26,15 +33,17 @@
 - ✅ 一键导出 PNG 图片
 - ✅ 高清输出（2x 倍率）
 - ✅ 使用 html2canvas 实现可靠导出
+- ✅ 需要登录才能导出
 
 ## 技术栈
 
 - **全栈框架**: Next.js 16.2.2 (App Router)
 - **前端语言**: TypeScript
 - **样式处理**: Tailwind CSS 3.4.19
-- **状态管理**: React Hooks (useState)
+- **状态管理**: React Hooks (useState, useContext)
 - **图片生成**: html2canvas
 - **构建工具**: Turbopack
+- **认证**: bcryptjs, jsonwebtoken
 
 ## 项目结构
 
@@ -43,14 +52,28 @@ generate-moments/
 ├── app/
 │   ├── favicon.svg          # 网站图标
 │   ├── globals.css          # 全局样式
-│   ├── layout.tsx           # 根布局
+│   ├── layout.tsx           # 根布局（包含 AuthProvider）
 │   ├── manifest.json        # PWA 配置
-│   └── page.tsx             # 主页面
+│   ├── page.tsx             # 主页面（含认证逻辑）
+│   └── api/
+│       └── auth/
+│           ├── register/    # 注册 API
+│           ├── login/       # 登录 API
+│           ├── verify/      # 验证 API
+│           └── logout/      # 登出 API
 ├── components/
 │   ├── EditorPanel.tsx      # 编辑器组件
-│   └── MomentPreview.tsx    # 预览组件
+│   ├── MomentPreview.tsx    # 预览组件
+│   └── AuthModal.tsx        # 认证模态框
+├── contexts/
+│   └── AuthContext.tsx      # 认证上下文
+├── lib/
+│   ├── auth.ts              # 认证工具函数
+│   └── storage.ts           # 用户存储工具
 ├── types/
 │   └── index.ts             # TypeScript 类型定义
+├── data/
+│   └── users.json           # 用户数据（不在 Git 中）
 ├── buildthings/
 │   ├── example.html         # UI 样板参考
 │   └── task.md              # 项目需求文档
@@ -59,6 +82,7 @@ generate-moments/
 ├── tailwind.config.js
 ├── postcss.config.js
 ├── next.config.js
+├── .env.local               # 环境变量（不在 Git 中）
 └── .gitignore
 ```
 
@@ -69,6 +93,16 @@ generate-moments/
 ```bash
 npm install
 ```
+
+### 配置环境变量
+
+创建 `.env.local` 文件：
+
+```env
+JWT_SECRET=your-super-secret-jwt-key-change-this-in-production-please
+```
+
+**重要**：在生产环境中，请使用强密码生成 JWT_SECRET。
 
 ### 运行开发服务器
 
@@ -111,3 +145,46 @@ interface MomentPost {
 ## 许可证
 
 ISC
+
+## 安全措施
+
+本项目实现了多层次的安全防护措施：
+
+### 1. 认证与授权
+- **JWT 令牌**：使用 JSON Web Token 进行用户认证
+- **密码哈希**：使用 bcryptjs 对用户密码进行加盐哈希存储
+- **HttpOnly Cookies**：认证令牌存储在 HttpOnly Cookie 中，防止 XSS 攻击
+- **Secure Cookies**：生产环境下使用 HTTPS 传输 Cookie
+- **SameSite Cookies**：设置 `strict` 模式防止 CSRF 攻击
+
+### 2. 输入验证
+- **用户名验证**：限制长度（3-20字符），只允许字母、数字、下划线和中文
+- **密码验证**：限制长度（6-50字符）
+- **输入清理**：使用 `sanitizeInput` 函数移除危险字符（如 `<` `>`）
+- **前后端双重验证**：客户端和服务端都进行输入验证
+
+### 3. 防止常见攻击
+- **XSS 防护**：输入清理 + React 自动转义
+- **CSRF 防护**：SameSite Cookie + JWT 认证
+- **SQL 注入防护**：使用文件存储而非数据库，避免 SQL 注入
+- **暴力破解防护**：虽然未实现速率限制，但密码哈希增加了破解成本
+
+### 4. 数据安全
+- **敏感数据保护**：用户数据存储在 `data/` 目录，已加入 `.gitignore`
+- **环境变量保护**：`.env.local` 已加入 `.gitignore`
+- **密码安全存储**：使用 bcrypt 加盐哈希，不存储明文密码
+- **最小权限原则**：只存储必要的用户信息
+
+### 5. 生产环境建议
+在生产环境中，建议额外实施以下安全措施：
+
+- 使用强随机密钥作为 `JWT_SECRET`
+- 实现速率限制（Rate Limiting）防止暴力破解
+- 添加验证码功能防止自动化攻击
+- 使用 HTTPS 传输所有数据
+- 定期更新依赖包
+- 实现 IP 黑名单机制
+- 添加日志记录和监控
+- 使用专业的数据库（如 PostgreSQL、MongoDB）
+- 实现用户会话管理和自动过期
+- 添加双因素认证（2FA）
