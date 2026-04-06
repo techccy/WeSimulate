@@ -63,7 +63,21 @@ export default function Home() {
   };
 
   const handleLoadDraft = (draft: Draft) => {
-    setData(draft);
+    const isValidUrl = (url: string): boolean => {
+      return !url.startsWith('blob:');
+    };
+
+    const filteredDraft: Draft = {
+      ...draft,
+      avatar: isValidUrl(draft.avatar) ? draft.avatar : defaultData.avatar,
+      images: draft.images.filter(isValidUrl),
+    };
+
+    if (draft.avatar !== filteredDraft.avatar || draft.images.length !== filteredDraft.images.length) {
+      alert("草稿中的图片已失效，请重新上传");
+    }
+
+    setData(filteredDraft);
     setDraftPrompt(false);
   };
 

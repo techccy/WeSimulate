@@ -136,7 +136,8 @@ export default function EditorPanel({
       return url;
     });
 
-    onChange({ ...data, images: [...data.images, ...localUrls] });
+    const newImages = [...data.images, ...localUrls];
+    onChange({ ...data, images: newImages });
 
     setUploading(true);
 
@@ -157,11 +158,14 @@ export default function EditorPanel({
           }
 
           const result = await response.json();
+          console.log(`上传成功 (${file.name}):`, result.imageUrl);
           return { localUrl: localUrls[index], serverUrl: result.imageUrl };
         })
       );
 
       const successfulUploads: { localUrl: string; serverUrl: string }[] = [];
+      const failedUploads: string[] = [];
+
       uploadResults.forEach((result, index) => {
         if (result.status === 'fulfilled') {
           successfulUploads.push(result.value);
@@ -172,20 +176,39 @@ export default function EditorPanel({
           });
         } else {
           console.error(`上传失败 (${filesToUpload[index].name}):`, result.reason);
+          failedUploads.push(localUrls[index]);
+          setPendingUploads(prev => {
+            const newMap = new Map(prev);
+            newMap.delete(localUrls[index]);
+            return newMap;
+          });
         }
       });
 
       if (successfulUploads.length > 0) {
-        const updatedImages = data.images.map(img => {
+        const updatedImages = newImages.map(img => {
           const upload = successfulUploads.find(u => u.localUrl === img);
-          return upload ? upload.serverUrl : img;
+          if (upload) {
+            URL.revokeObjectURL(img);
+            return upload.serverUrl;
+          }
+          return img;
         });
+        console.log("更新图片列表:", updatedImages);
         const updatedData = { ...data, images: updatedImages };
         onChange(updatedData);
         await saveDraft(updatedData);
       }
+
+      if (failedUploads.length > 0) {
+        const updatedImages = newImages.filter(img => !failedUploads.includes(img));
+        const updatedData = { ...data, images: updatedImages };
+        onChange(updatedData);
+        alert(`${failedUploads.length} 张图片上传失败，请重试`);
+      }
     } catch (error) {
       console.error("上传错误:", error);
+      alert(`上传失败: ${error instanceof Error ? error.message : '未知错误'}`);
     } finally {
       setUploading(false);
       e.target.value = '';
@@ -271,6 +294,8 @@ export default function EditorPanel({
       }
 
       const result = await response.json();
+      console.log(`头像上传成功:`, result.imageUrl);
+      URL.revokeObjectURL(localUrl);
       setPendingUploads(prev => {
         const newMap = new Map(prev);
         newMap.delete(localUrl);
@@ -280,7 +305,7 @@ export default function EditorPanel({
       onChange(updatedData);
       await saveDraft(updatedData);
     } catch (error) {
-      console.error("上传错误:", error);
+      console.error("头像上传错误:", error);
       alert(`上传失败: ${error instanceof Error ? error.message : '未知错误'}`);
     } finally {
       setUploading(false);
@@ -295,13 +320,15 @@ export default function EditorPanel({
         <div className="flex gap-2">
           <button
             onClick={onReset}
-            className="text-sm bg-gray-500 text-white px-3 py-1 rounded hover:bg-gray-600"
+            disabled={uploading}
+            className="text-sm bg-gray-500 text-white px-3 py-1 rounded hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             一键重置
           </button>
           <button
             onClick={onSaveDraft}
-            className="text-sm bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600"
+            disabled={uploading || pendingUploads.size > 0}
+            className="text-sm bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             保存草稿
           </button>
@@ -363,6 +390,10 @@ export default function EditorPanel({
                     src={image}
                     alt={`Preview ${index}`}
                     className="w-full h-20 object-cover rounded border"
+                    onError={(e) => {
+                      console.error(`Editor 图片加载失败 (${index}):`, image);
+                      (e.currentTarget as HTMLImageElement).src = "https://via.placeholder.com/150?text=Error";
+                    }}
                   />
                   {pendingUploads.has(image) && (
                     <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">

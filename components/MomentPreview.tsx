@@ -72,6 +72,11 @@ export default function MomentPreview({ data, showComments = true, width = 375 }
     }
   };
 
+  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>, index: number) => {
+    console.error(`图片加载失败 (${index}):`, e.currentTarget.src);
+    e.currentTarget.src = "https://via.placeholder.com/150?text=Error";
+  };
+
   return (
     <div className="post-container flex flex-row w-full" style={{ maxWidth: `${width}px` }}>
       <div className="avatar-container mr-3">
@@ -79,6 +84,10 @@ export default function MomentPreview({ data, showComments = true, width = 375 }
           className="avatar w-[45px] h-[45px] rounded-[4px] bg-[#ddd] object-cover"
           src={data.avatar || "https://via.placeholder.com/100?text=Avatar"}
           alt="User Avatar"
+          onError={(e) => {
+            console.error("头像加载失败:", e.currentTarget.src);
+            (e.currentTarget as HTMLImageElement).src = "https://via.placeholder.com/100?text=Avatar";
+          }}
         />
       </div>
 
@@ -99,12 +108,13 @@ export default function MomentPreview({ data, showComments = true, width = 375 }
               <div key={index} className={data.images.length > 1 ? "aspect-square" : ""}>
                 <img
                   className={`post-image w-full rounded-[2px] bg-[#f5f5f5] ${
-                    data.images.length === 1 
-                      ? "object-contain" 
+                    data.images.length === 1
+                      ? "object-contain"
                       : "w-full h-full object-cover"
                   }`}
                   src={image}
                   alt={`Post Image ${index + 1}`}
+                  onError={(e) => handleImageError(e, index)}
                 />
               </div>
             ))}
