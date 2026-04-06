@@ -11,8 +11,8 @@ interface User {
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  register: (username: string, password: string, confirmPassword: string) => Promise<{ success: boolean; error?: string }>;
+  login: (username: string, password: string, captchaId: string, captchaCode: string) => Promise<{ success: boolean; error?: string }>;
+  register: (username: string, password: string, confirmPassword: string, captchaId: string, captchaCode: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
   saveDraft: (data: MomentPost) => Promise<Draft | null>;
@@ -49,12 +49,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     checkAuth();
   }, []);
 
-  const login = async (username: string, password: string) => {
+  const login = async (username: string, password: string, captchaId: string, captchaCode: string) => {
     try {
       const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ username, password, captchaId, captchaCode }),
       });
 
       const data = await response.json();
@@ -71,12 +71,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const register = async (username: string, password: string, confirmPassword: string) => {
+  const register = async (username: string, password: string, confirmPassword: string, captchaId: string, captchaCode: string) => {
     try {
       const response = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password, confirmPassword }),
+        body: JSON.stringify({ username, password, confirmPassword, captchaId, captchaCode }),
       });
 
       const data = await response.json();

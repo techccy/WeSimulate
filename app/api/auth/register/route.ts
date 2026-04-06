@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { username, password, confirmPassword } = body;
+    const { username, password, confirmPassword, captchaId, captchaCode } = body;
 
     if (!username || !password || !confirmPassword) {
       return NextResponse.json(
@@ -21,6 +21,41 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    if (!captchaId || !captchaCode) {
+      return NextResponse.json(
+        { error: "请输入验证码" },
+        { status: 400 }
+      );
+    }
+
+    const { getCaptchaStore } = await import("../captcha/route");
+    const captchaStore = getCaptchaStore();
+    const stored = captchaStore.get(captchaId);
+    
+    if (!stored) {
+      return NextResponse.json(
+        { error: "验证码无效或已过期" },
+        { status: 400 }
+      );
+    }
+
+    if (Date.now() > stored.expires) {
+      captchaStore.delete(captchaId);
+      return NextResponse.json(
+        { error: "验证码已过期" },
+        { status: 400 }
+      );
+    }
+
+    if (captchaCode.toLowerCase() !== stored.code) {
+      return NextResponse.json(
+        { error: "验证码错误" },
+        { status: 400 }
+      );
+    }
+
+    captchaStore.delete(captchaId);
 
     if (password !== confirmPassword) {
       return NextResponse.json(

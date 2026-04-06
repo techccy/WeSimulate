@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface AuthModalProps {
@@ -14,9 +14,37 @@ export default function AuthModal({ isOpen, onClose, mode }: AuthModalProps) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [captchaCode, setCaptchaCode] = useState("");
+  const [captchaSvg, setCaptchaSvg] = useState("");
+  const [captchaId, setCaptchaId] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const { login, register } = useAuth();
+
+  const fetchCaptcha = useCallback(async () => {
+    try {
+      const response = await fetch("/api/auth/captcha", {
+        method: "GET",
+      });
+      const data = await response.json();
+      
+      if (data.svg) {
+        setCaptchaSvg(data.svg);
+        setCaptchaId(data.captchaId);
+        setCaptchaCode("");
+      } else {
+        console.error("验证码数据无效:", data);
+      }
+    } catch (error) {
+      console.error("获取验证码失败:", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchCaptcha();
+    }
+  }, [isOpen, fetchCaptcha]);
 
   if (!isOpen) return null;
 
@@ -25,9 +53,15 @@ export default function AuthModal({ isOpen, onClose, mode }: AuthModalProps) {
     setError("");
     setLoading(true);
 
+    if (!captchaCode) {
+      setError("请输入验证码");
+      setLoading(false);
+      return;
+    }
+
     const result = isRegister
-      ? await register(username, password, confirmPassword)
-      : await login(username, password);
+      ? await register(username, password, confirmPassword, captchaId, captchaCode)
+      : await login(username, password, captchaId, captchaCode);
 
     setLoading(false);
 
@@ -35,14 +69,17 @@ export default function AuthModal({ isOpen, onClose, mode }: AuthModalProps) {
       if (isRegister) {
         setIsRegister(false);
         setError("注册成功，请登录！");
+        fetchCaptcha();
         return;
       }
       onClose();
       setUsername("");
       setPassword("");
       setConfirmPassword("");
+      setCaptchaCode("");
     } else {
       setError(result.error || "操作失败");
+      fetchCaptcha();
     }
   };
 
@@ -52,6 +89,8 @@ export default function AuthModal({ isOpen, onClose, mode }: AuthModalProps) {
     setUsername("");
     setPassword("");
     setConfirmPassword("");
+    setCaptchaCode("");
+    fetchCaptcha();
   };
 
   return (
@@ -105,6 +144,27 @@ export default function AuthModal({ isOpen, onClose, mode }: AuthModalProps) {
               />
             </div>
           )}
+
+          <div>
+            <label className="block text-sm font-medium mb-1">验证码</label>
+            <div className="flex gap-2 items-center">
+              <input
+                type="text"
+                value={captchaCode}
+                onChange={(e) => setCaptchaCode(e.target.value)}
+                className="flex-1 border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="请输入验证码"
+                required
+                maxLength={4}
+              />
+              <div
+                className="w-32 h-10 border rounded cursor-pointer bg-white overflow-hidden"
+                onClick={fetchCaptcha}
+                dangerouslySetInnerHTML={{ __html: captchaSvg || '<span class="text-xs text-gray-400">加载中...</span>' }}
+              />
+            </div>
+            <p className="text-xs text-gray-500 mt-1">点击图片刷新验证码</p>
+          </div>
 
           <button
             type="submit"
