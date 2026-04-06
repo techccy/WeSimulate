@@ -21,9 +21,16 @@ const defaultData: MomentPost = {
   ],
 };
 
+const DEVICE_WIDTHS = {
+  mobile: 375,
+  tablet: 768,
+  desktop: 1200,
+};
+
 export default function Home() {
   const [data, setData] = useState<MomentPost>(defaultData);
   const [showComments, setShowComments] = useState(true);
+  const [deviceType, setDeviceType] = useState<keyof typeof DEVICE_WIDTHS>("mobile");
   const previewRef = useRef<HTMLDivElement>(null);
 
   const handleExport = async () => {
@@ -38,11 +45,27 @@ export default function Home() {
 
       const canvas = await html2canvas(element, {
         scale: 2,
+        width: element.scrollWidth,
         backgroundColor: "#f5f5f5",
         logging: false,
       });
 
-      const dataUrl = canvas.toDataURL("image/png");
+      const originalWidth = canvas.width;
+      const originalHeight = canvas.height;
+      const newWidth = Math.floor(originalWidth * 1.4);
+      const newHeight = Math.floor(originalHeight * 1.2);
+
+      const finalCanvas = document.createElement("canvas");
+      finalCanvas.width = newWidth;
+      finalCanvas.height = newHeight;
+      const ctx = finalCanvas.getContext("2d");
+      if (ctx) {
+        ctx.fillStyle = "#f5f5f5";
+        ctx.fillRect(0, 0, newWidth, newHeight);
+        ctx.drawImage(canvas, Math.floor(originalWidth * 0.2), Math.floor(originalHeight * 0.1));
+      }
+
+      const dataUrl = finalCanvas.toDataURL("image/png");
 
       const link = document.createElement("a");
       link.download = `moment-${Date.now()}.png`;
@@ -82,11 +105,29 @@ export default function Home() {
                 </button>
               </div>
 
+              <div className="flex items-center gap-2 mb-4">
+                <span className="text-sm font-medium">设备:</span>
+                {(["mobile", "tablet", "desktop"] as const).map((type) => (
+                  <button
+                    key={type}
+                    onClick={() => setDeviceType(type)}
+                    className={`px-3 py-1 rounded text-sm ${
+                      deviceType === type
+                        ? "bg-blue-500 text-white"
+                        : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                    }`}
+                  >
+                    {type === "mobile" ? "手机端" : type === "tablet" ? "平板端" : "电脑端"}
+                  </button>
+                ))}
+              </div>
+
               <div className="bg-[#f5f5f5] p-4 rounded flex justify-center">
                 <div ref={previewRef}>
                   <MomentPreview
                     data={data}
                     showComments={showComments}
+                    width={DEVICE_WIDTHS[deviceType]}
                   />
                 </div>
               </div>

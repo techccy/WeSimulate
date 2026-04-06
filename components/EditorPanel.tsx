@@ -47,9 +47,15 @@ export default function EditorPanel({
   };
 
   const handleLikesChange = (value: string) => {
+    const lines = value.split("\n").map((s) => s.trim());
+    const filteredLines = lines.filter((s, i) => {
+      const isNotEmpty = s !== "";
+      const isLast = i === lines.length - 1;
+      return isNotEmpty || isLast;
+    });
     onChange({
       ...data,
-      likes: value.split(",").map((s) => s.trim()).filter(Boolean),
+      likes: filteredLines,
     });
   };
 
@@ -168,13 +174,12 @@ export default function EditorPanel({
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-1">点赞人 (逗号分隔)</label>
-          <input
-            type="text"
-            value={data.likes.join(", ")}
+          <label className="block text-sm font-medium mb-1">点赞人 (换行分隔)</label>
+          <textarea
+            value={data.likes.join("\n")}
             onChange={(e) => handleLikesChange(e.target.value)}
-            className="w-full border rounded px-3 py-2"
-            placeholder="如：张三, 李四, 王五"
+            className="w-full border rounded px-3 py-2 h-24 resize-none"
+            placeholder="如：张三&#10;李四&#10;王五"
           />
         </div>
 

@@ -5,9 +5,43 @@ import { MomentPost } from "@/types";
 interface MomentPreviewProps {
   data: MomentPost;
   showComments?: boolean;
+  width?: number;
 }
 
-export default function MomentPreview({ data, showComments = true }: MomentPreviewProps) {
+export default function MomentPreview({ data, showComments = true, width = 375 }: MomentPreviewProps) {
+  const MAX_CHARS_PER_LINE = 33;
+
+  const formatLikes = (likes: string[]) => {
+    if (likes.length === 0) return [];
+
+    let currentLine: { name: string; isSeparator: boolean }[] = [];
+    let lines: { name: string; isSeparator: boolean }[][] = [];
+
+    likes.forEach((like, index) => {
+      const potentialLength = currentLine.reduce((sum, item) => {
+        return sum + (item.isSeparator ? 2 : item.name.length);
+      }, 0) + (currentLine.length > 0 ? 2 : 0) + like.length;
+
+      if (potentialLength <= MAX_CHARS_PER_LINE) {
+        if (currentLine.length > 0) {
+          currentLine.push({ name: ", ", isSeparator: true });
+        }
+        currentLine.push({ name: like, isSeparator: false });
+      } else {
+        if (currentLine.length > 0) {
+          lines.push(currentLine);
+        }
+        currentLine = [{ name: like, isSeparator: false }];
+      }
+
+      if (index === likes.length - 1 && currentLine.length > 0) {
+        lines.push(currentLine);
+      }
+    });
+
+    return lines;
+  };
+
   const getImageGridClass = (count: number) => {
     switch (count) {
       case 1:
@@ -29,7 +63,7 @@ export default function MomentPreview({ data, showComments = true }: MomentPrevi
   };
 
   return (
-    <div className="post-container flex flex-row w-full max-w-[500px]">
+    <div className="post-container flex flex-row w-full" style={{ maxWidth: `${width}px` }}>
       <div className="avatar-container mr-3">
         <img
           className="avatar w-[45px] h-[45px] rounded-[4px] bg-[#ddd] object-cover"
@@ -80,8 +114,27 @@ export default function MomentPreview({ data, showComments = true }: MomentPrevi
             <div className="interaction-box-triangle absolute -top-2.5 left-2.5 border-[5px] border-solid border-transparent border-b-[#f7f7f7]" />
 
             {data.likes.length > 0 && (
-              <div className="likes text-[#576b95] font-medium pb-1.5 border-b-[0.5px] border-[#eee] mb-1.5 flex items-center">
-                ♥ {data.likes.join(", ")}
+              <div className="likes text-[#576b95] font-medium pb-1.5 border-b-[0.5px] border-[#eee] mb-1.5">
+                {formatLikes(data.likes).map((line, index) => (
+                  <div key={index} className="flex items-center mb-1 last:mb-0">
+                    {index === 0 ? (
+                      <>
+                        <span>♡</span>
+                        <span className="ml-1">
+                          {line.map((item, i) => (
+                            <span key={i}>{item.name}</span>
+                          ))}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="ml-5">
+                        {line.map((item, i) => (
+                          <span key={i}>{item.name}</span>
+                        ))}
+                      </span>
+                    )}
+                  </div>
+                ))}
               </div>
             )}
 
@@ -90,8 +143,9 @@ export default function MomentPreview({ data, showComments = true }: MomentPrevi
                 {data.comments.map((comment, index) => (
                   <div key={index} className="comment-item mb-1 leading-[1.4]">
                     <span className="comment-user text-[#576b95] font-medium">
-                      {comment.user}：
+                      {comment.user}
                     </span>
+                    <span className="text-black">：</span>
                     <span className="comment-text text-black">{comment.text}</span>
                   </div>
                 ))}
