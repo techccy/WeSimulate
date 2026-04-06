@@ -1,0 +1,11 @@
+buildthings/
+.DS_Store
+
+node_modules/
+.next/
+out/
+.vercel/
+*.log
+.env*.local
+.turbo
+.playwright-mcp
