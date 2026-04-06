@@ -24,7 +24,6 @@ const defaultData: MomentPost = {
 export default function Home() {
   const [data, setData] = useState<MomentPost>(defaultData);
   const [showComments, setShowComments] = useState(true);
-  const [showDelete, setShowDelete] = useState(false);
   const previewRef = useRef<HTMLDivElement>(null);
 
   const handleExport = async () => {
@@ -68,9 +67,7 @@ export default function Home() {
             data={data}
             onChange={setData}
             showComments={showComments}
-            showDelete={showDelete}
             onToggleComments={() => setShowComments(!showComments)}
-            onToggleDelete={() => setShowDelete(!showDelete)}
           />
 
           <div className="sticky top-8">
@@ -90,7 +87,6 @@ export default function Home() {
                   <MomentPreview
                     data={data}
                     showComments={showComments}
-                    showDelete={showDelete}
                   />
                 </div>
               </div>

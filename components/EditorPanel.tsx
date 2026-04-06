@@ -7,18 +7,14 @@ interface EditorPanelProps {
   data: MomentPost;
   onChange: (data: MomentPost) => void;
   showComments: boolean;
-  showDelete: boolean;
   onToggleComments: () => void;
-  onToggleDelete: () => void;
 }
 
 export default function EditorPanel({
   data,
   onChange,
   showComments,
-  showDelete,
   onToggleComments,
-  onToggleDelete,
 }: EditorPanelProps) {
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -228,14 +224,6 @@ export default function EditorPanel({
               onChange={onToggleComments}
             />
             <span className="text-sm">显示评论区</span>
-          </label>
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={showDelete}
-              onChange={onToggleDelete}
-            />
-            <span className="text-sm">显示删除按钮</span>
           </label>
         </div>
       </div>

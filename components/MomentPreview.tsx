@@ -5,10 +5,9 @@ import { MomentPost } from "@/types";
 interface MomentPreviewProps {
   data: MomentPost;
   showComments?: boolean;
-  showDelete?: boolean;
 }
 
-export default function MomentPreview({ data, showComments = true, showDelete = false }: MomentPreviewProps) {
+export default function MomentPreview({ data, showComments = true }: MomentPreviewProps) {
   const getImageGridClass = (count: number) => {
     switch (count) {
       case 1:
@@ -49,14 +48,21 @@ export default function MomentPreview({ data, showComments = true, showDelete = 
         </div>
 
         {data.images.length > 0 && (
-          <div className={`grid ${getImageGridClass(data.images.length)} gap-1 mb-3`}>
+          <div className={`grid ${getImageGridClass(data.images.length)} gap-1 mb-3 ${
+            data.images.length <= 2 ? "w-[60%]" : "w-[90%]"
+          }`}>
             {data.images.map((image, index) => (
-              <img
-                key={index}
-                className={`post-image w-full rounded-[2px] object-cover bg-[#f5f5f5] ${data.images.length === 1 ? "max-w-[300px]" : ""}`}
-                src={image}
-                alt={`Post Image ${index + 1}`}
-              />
+              <div key={index} className={data.images.length > 1 ? "aspect-square" : ""}>
+                <img
+                  className={`post-image w-full rounded-[2px] bg-[#f5f5f5] ${
+                    data.images.length === 1 
+                      ? "object-contain" 
+                      : "w-full h-full object-cover"
+                  }`}
+                  src={image}
+                  alt={`Post Image ${index + 1}`}
+                />
+              </div>
             ))}
           </div>
         )}
@@ -66,7 +72,7 @@ export default function MomentPreview({ data, showComments = true, showDelete = 
             {data.location && <span className="mr-2">{data.location}</span>}
             {data.timestamp}
           </span>
-          {showDelete && <div className="more-icon bg-[#f7f7f7] px-1.5 py-0.5 rounded-[4px] text-[#576b95] font-bold cursor-pointer">··</div>}
+          <div className="more-icon bg-[#f7f7f7] px-[2.976] py-[0.9915] rounded-[4px] text-[#576b95] font-bold cursor-pointer">··</div>
         </div>
 
         {showComments && (data.likes.length > 0 || data.comments.length > 0) && (
