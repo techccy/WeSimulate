@@ -144,7 +144,7 @@ interface MomentPost {
 
 ## 许可证
 
-ISC
+MIT
 
 ## 安全措施
 
