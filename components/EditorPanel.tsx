@@ -24,6 +24,74 @@ export default function EditorPanel({
   const [uploading, setUploading] = useState(false);
   const { user } = useAuth();
   const MAX_FILE_SIZE = 5 * 1024 * 1024;
+  const [compressModal, setCompressModal] = useState<{ file: File; resolve: (compress: boolean) => void } | null>(null);
+
+  const compressImage = async (file: File, maxWidth = 1920, quality = 0.8): Promise<File> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth) {
+          height = (height * maxWidth) / width;
+          width = maxWidth;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+
+        ctx?.drawImage(img, 0, 0, width, height);
+
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              const compressedFile = new File([blob], file.name, {
+                type: file.type,
+                lastModified: Date.now(),
+              });
+              resolve(compressedFile);
+            } else {
+              resolve(file);
+            }
+          },
+          file.type,
+          quality
+        );
+      };
+
+      img.onerror = () => resolve(file);
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
+  const checkFileSizeAndCompress = async (files: File[]): Promise<{ filesToUpload: File[]; hasError: boolean }> => {
+    const filesToUpload: File[] = [];
+    let hasError = false;
+
+    for (const file of files) {
+      if (file.size > MAX_FILE_SIZE) {
+        const shouldCompress = await new Promise<boolean>((resolve) => {
+          setCompressModal({ file, resolve });
+        });
+
+        if (!shouldCompress) {
+          hasError = true;
+          break;
+        }
+
+        const compressedFile = await compressImage(file);
+        filesToUpload.push(compressedFile);
+      } else {
+        filesToUpload.push(file);
+      }
+    }
+
+    return { filesToUpload, hasError };
+  };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!user) {
@@ -38,15 +106,14 @@ export default function EditorPanel({
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
 
-    for (const file of files) {
-      if (file.size > MAX_FILE_SIZE) {
-        alert(`文件 ${file.name} 大小超过限制（5MB）`);
-        e.target.value = '';
-        return;
-      }
+    const { filesToUpload, hasError } = await checkFileSizeAndCompress(files);
+
+    if (hasError) {
+      e.target.value = '';
+      return;
     }
 
-    const totalImages = data.images.length + files.length;
+    const totalImages = data.images.length + filesToUpload.length;
     if (totalImages > 9) {
       alert("最多只能上传9张图片");
       return;
@@ -55,7 +122,7 @@ export default function EditorPanel({
     setUploading(true);
 
     try {
-      const uploadPromises = files.map(async (file) => {
+      const uploadPromises = filesToUpload.map(async (file) => {
         const formData = new FormData();
         formData.append("file", file);
 
@@ -133,8 +200,9 @@ export default function EditorPanel({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > MAX_FILE_SIZE) {
-      alert(`文件大小超过限制（5MB）`);
+    const { filesToUpload, hasError } = await checkFileSizeAndCompress([file]);
+
+    if (hasError) {
       e.target.value = '';
       return;
     }
@@ -143,7 +211,7 @@ export default function EditorPanel({
 
     try {
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("file", filesToUpload[0]);
 
       const response = await fetch("/api/upload", {
         method: "POST",
@@ -324,6 +392,37 @@ export default function EditorPanel({
           </label>
         </div>
       </div>
+
+      {compressModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-sm mx-4">
+            <h3 className="text-lg font-semibold mb-2">文件过大</h3>
+            <p className="text-gray-600 mb-4">
+              文件 "{compressModal.file.name}" 超过 5MB，是否压缩后上传？
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  compressModal.resolve(false);
+                  setCompressModal(null);
+                }}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800"
+              >
+                取消
+              </button>
+              <button
+                onClick={() => {
+                  compressModal.resolve(true);
+                  setCompressModal(null);
+                }}
+                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+              >
+                压缩并上传
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

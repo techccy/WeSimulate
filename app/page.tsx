@@ -110,6 +110,9 @@ export default function Home() {
       link.download = `moment-${Date.now()}.png`;
       link.href = dataUrl;
       link.click();
+
+      await saveDraft(data);
+      setData(defaultData);
     } catch (error) {
       console.error("导出失败:", error);
       alert("导出失败，请重试");
