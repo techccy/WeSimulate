@@ -2,12 +2,15 @@
 
 import { useState } from "react";
 import { MomentPost } from "@/types";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface EditorPanelProps {
   data: MomentPost;
   onChange: (data: MomentPost) => void;
   showComments: boolean;
   onToggleComments: () => void;
+  onSaveDraft: () => void;
+  onShowLoginModal?: () => void;
 }
 
 export default function EditorPanel({
@@ -15,10 +18,33 @@ export default function EditorPanel({
   onChange,
   showComments,
   onToggleComments,
+  onSaveDraft,
+  onShowLoginModal,
 }: EditorPanelProps) {
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const [uploading, setUploading] = useState(false);
+  const { user } = useAuth();
+  const MAX_FILE_SIZE = 5 * 1024 * 1024;
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!user) {
+      if (onShowLoginModal) {
+        onShowLoginModal();
+      } else {
+        alert("请先登录后上传照片");
+      }
+      return;
+    }
+
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
+
+    for (const file of files) {
+      if (file.size > MAX_FILE_SIZE) {
+        alert(`文件 ${file.name} 大小超过限制（5MB）`);
+        e.target.value = '';
+        return;
+      }
+    }
 
     const totalImages = data.images.length + files.length;
     if (totalImages > 9) {
@@ -26,17 +52,35 @@ export default function EditorPanel({
       return;
     }
 
-    Promise.all(
-      files.map((file) => {
-        return new Promise<string>((resolve) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result as string);
-          reader.readAsDataURL(file);
+    setUploading(true);
+
+    try {
+      const uploadPromises = files.map(async (file) => {
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const response = await fetch("/api/upload", {
+          method: "POST",
+          body: formData,
         });
-      })
-    ).then((newImages) => {
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || `上传失败 (${response.status})`);
+        }
+
+        const result = await response.json();
+        return result.imageUrl;
+      });
+
+      const newImages = await Promise.all(uploadPromises);
       onChange({ ...data, images: [...data.images, ...newImages] });
-    });
+    } catch (error) {
+      console.error("上传错误:", error);
+      alert(`上传失败: ${error instanceof Error ? error.message : '未知错误'}`);
+    } finally {
+      setUploading(false);
+    }
   };
 
   const removeImage = (index: number) => {
@@ -76,9 +120,62 @@ export default function EditorPanel({
     });
   };
 
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!user) {
+      if (onShowLoginModal) {
+        onShowLoginModal();
+      } else {
+        alert("请先登录后上传头像");
+      }
+      return;
+    }
+
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > MAX_FILE_SIZE) {
+      alert(`文件大小超过限制（5MB）`);
+      e.target.value = '';
+      return;
+    }
+
+    setUploading(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `上传失败 (${response.status})`);
+      }
+
+      const result = await response.json();
+      onChange({ ...data, avatar: result.imageUrl });
+    } catch (error) {
+      console.error("上传错误:", error);
+      alert(`上传失败: ${error instanceof Error ? error.message : '未知错误'}`);
+    } finally {
+      setUploading(false);
+    }
+  };
+
   return (
     <div className="editor-panel w-full max-w-md bg-white p-6 rounded-lg shadow-md">
-      <h2 className="text-xl font-bold mb-4">编辑面板</h2>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-bold">编辑面板</h2>
+        <button
+          onClick={onSaveDraft}
+          className="text-sm bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600"
+        >
+          保存草稿
+        </button>
+      </div>
 
       <div className="space-y-4">
         <div>
@@ -86,18 +183,11 @@ export default function EditorPanel({
           <input
             type="file"
             accept="image/*"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) {
-                const reader = new FileReader();
-                reader.onloadend = () => {
-                  onChange({ ...data, avatar: reader.result as string });
-                };
-                reader.readAsDataURL(file);
-              }
-            }}
+            onChange={handleAvatarUpload}
+            disabled={uploading}
             className="w-full border rounded px-3 py-2 text-sm"
           />
+          {uploading && <span className="text-xs text-gray-500">上传中...</span>}
         </div>
 
         <div>
@@ -128,8 +218,10 @@ export default function EditorPanel({
             accept="image/*"
             multiple
             onChange={handleImageUpload}
+            disabled={uploading}
             className="w-full border rounded px-3 py-2 text-sm"
           />
+          {uploading && <span className="text-xs text-gray-500">上传中...</span>}
           {data.images.length > 0 && (
             <div className="mt-2 grid grid-cols-3 gap-2">
               {data.images.map((image, index) => (
@@ -193,28 +285,28 @@ export default function EditorPanel({
               + 添加评论
             </button>
           </div>
-          <div className="space-y-2">
+          <div className="space-y-3">
             {data.comments.map((comment, index) => (
-              <div key={index} className="flex gap-2 items-start">
+              <div key={index} className="border rounded p-3">
                 <input
                   type="text"
                   value={comment.user}
                   onChange={(e) => handleCommentsChange(index, "user", e.target.value)}
-                  className="flex-1 border rounded px-3 py-2 text-sm"
-                  placeholder="用户名"
+                  className="w-full border rounded px-3 py-2 text-sm mb-2"
+                  placeholder="评论人昵称"
                 />
                 <input
                   type="text"
                   value={comment.text}
                   onChange={(e) => handleCommentsChange(index, "text", e.target.value)}
-                  className="flex-[2] border rounded px-3 py-2 text-sm"
+                  className="w-full border rounded px-3 py-2 text-sm"
                   placeholder="评论内容"
                 />
                 <button
                   onClick={() => removeComment(index)}
-                  className="text-red-500 hover:text-red-600 px-2"
+                  className="mt-2 text-red-500 hover:text-red-600 text-sm"
                 >
-                  ×
+                  删除
                 </button>
               </div>
             ))}

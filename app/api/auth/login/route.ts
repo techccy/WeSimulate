@@ -1,9 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyPassword, generateToken, validateUsername, validatePassword, sanitizeInput } from "@/lib/auth";
 import { findUserByUsername } from "@/lib/storage";
+import { rateLimit, getClientIp } from "@/lib/security";
 
 export async function POST(request: NextRequest) {
   try {
+    const ip = getClientIp(request);
+    const rateCheck = rateLimit(ip);
+    
+    if (!rateCheck.success) {
+      return NextResponse.json({ error: rateCheck.error }, { status: 429 });
+    }
+
     const body = await request.json();
     const { username, password } = body;
 

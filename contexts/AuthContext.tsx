@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { MomentPost, Draft } from "@/types";
 
 interface User {
   id: string;
@@ -14,6 +15,9 @@ interface AuthContextType {
   register: (username: string, password: string, confirmPassword: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
+  saveDraft: (data: MomentPost) => Promise<Draft | null>;
+  getDrafts: () => Promise<Draft[]>;
+  deleteDraft: (draftId: string) => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -97,8 +101,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const saveDraft = async (data: MomentPost): Promise<Draft | null> => {
+    try {
+      const title = data.content.substring(0, 10) || "未命名草稿";
+      const response = await fetch("/api/drafts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ data, title }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        return null;
+      }
+      return result.draft;
+    } catch (error) {
+      console.error("保存草稿错误:", error);
+      return null;
+    }
+  };
+
+  const getDrafts = async (): Promise<Draft[]> => {
+    try {
+      const response = await fetch("/api/drafts", { method: "GET" });
+      const data = await response.json();
+      return data.drafts || [];
+    } catch (error) {
+      console.error("获取草稿错误:", error);
+      return [];
+    }
+  };
+
+  const deleteDraft = async (draftId: string): Promise<boolean> => {
+    try {
+      const response = await fetch(`/api/drafts/${draftId}`, { method: "DELETE" });
+      return response.ok;
+    } catch (error) {
+      console.error("删除草稿错误:", error);
+      return false;
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, checkAuth }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, checkAuth, saveDraft, getDrafts, deleteDraft }}>
       {children}
     </AuthContext.Provider>
   );

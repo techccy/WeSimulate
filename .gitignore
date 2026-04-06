@@ -10,3 +10,4 @@ out/
 .turbo
 .playwright-mcp
 data/
+public/uploads/

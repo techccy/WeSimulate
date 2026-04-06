@@ -11,3 +11,11 @@ export interface MomentPost {
     text: string;
   }[];
 }
+
+export interface Draft extends MomentPost {
+  id: string;
+  userId: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+}

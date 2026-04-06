@@ -32,6 +32,11 @@ export default function AuthModal({ isOpen, onClose, mode }: AuthModalProps) {
     setLoading(false);
 
     if (result.success) {
+      if (isRegister) {
+        setIsRegister(false);
+        setError("注册成功，请登录！");
+        return;
+      }
       onClose();
       setUsername("");
       setPassword("");
