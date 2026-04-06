@@ -108,33 +108,6 @@ interface MomentPost {
 }
 ```
 
-## 样式参考
-
-UI 设计基于 `buildthings/example.html`，深度参考微信 8.0+ 版本样式，包括：
-- 圆角头像（4px）
-- 链接色（#576b95）
-- 时间显示颜色（#b1b1b1）
-- 互动区背景色（#f7f7f7）
-- 点赞和评论样式还原
-
-## 开发说明
-
-### 添加新功能
-
-1. 更新 `types/index.ts` 中的数据结构
-2. 在 `components/EditorPanel.tsx` 中添加编辑控件
-3. 在 `components/MomentPreview.tsx` 中添加预览渲染
-4. 在 `app/page.tsx` 中添加状态管理
-
-### 样式修改
-
-主要样式使用 Tailwind CSS 类名，部分特定样式在 `app/globals.css` 中定义。
-
-## 已知问题
-
-- 图片导出功能在某些复杂的 CSS 场景下可能不够完美
-- 某些浏览器的安全策略可能限制文件下载
-
 ## 许可证
 
 ISC

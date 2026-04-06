@@ -9,7 +9,17 @@ interface MomentPreviewProps {
 }
 
 export default function MomentPreview({ data, showComments = true, width = 375 }: MomentPreviewProps) {
-  const MAX_CHARS_PER_LINE = 33;
+  const MAX_WIDTH_PER_LINE = 33;
+
+  const getDisplayWidth = (str: string): number => {
+    return Array.from(str).reduce((sum, char) => {
+      const code = char.codePointAt(0) || 0;
+      if (code >= 0x4E00 && code <= 0x9FFF) {
+        return sum + 2;
+      }
+      return sum + 1;
+    }, 0);
+  };
 
   const formatLikes = (likes: string[]) => {
     if (likes.length === 0) return [];
@@ -19,10 +29,10 @@ export default function MomentPreview({ data, showComments = true, width = 375 }
 
     likes.forEach((like, index) => {
       const potentialLength = currentLine.reduce((sum, item) => {
-        return sum + (item.isSeparator ? 2 : item.name.length);
-      }, 0) + (currentLine.length > 0 ? 2 : 0) + like.length;
+        return sum + getDisplayWidth(item.name);
+      }, 0) + (currentLine.length > 0 ? 2 : 0) + getDisplayWidth(like);
 
-      if (potentialLength <= MAX_CHARS_PER_LINE) {
+      if (potentialLength <= MAX_WIDTH_PER_LINE) {
         if (currentLine.length > 0) {
           currentLine.push({ name: ", ", isSeparator: true });
         }
@@ -73,11 +83,11 @@ export default function MomentPreview({ data, showComments = true, width = 375 }
       </div>
 
       <div className="main-content flex-1">
-        <div className="username text-[#576b95] font-semibold text-base mb-1 cursor-pointer">
+        <div className="username text-[#576b95] font-semibold text-base mb-1 cursor-pointer break-all">
           {data.nickname}
         </div>
 
-        <div className="post-text text-[15px] leading-[1.5] mb-2.5">
+        <div className="post-text text-[15px] leading-[1.5] mb-2.5 break-words">
           {data.content}
         </div>
 
@@ -114,20 +124,20 @@ export default function MomentPreview({ data, showComments = true, width = 375 }
             <div className="interaction-box-triangle absolute -top-2.5 left-2.5 border-[5px] border-solid border-transparent border-b-[#f7f7f7]" />
 
             {data.likes.length > 0 && (
-              <div className="likes text-[#576b95] font-medium pb-1.5 border-b-[0.5px] border-[#eee] mb-1.5">
+              <div className="likes text-[#576b95] font-medium pb-1.5 border-b-[0.5px] border-[#eee] mb-1.5 break-words">
                 {formatLikes(data.likes).map((line, index) => (
                   <div key={index} className="flex items-center mb-1 last:mb-0">
                     {index === 0 ? (
                       <>
                         <span>♡</span>
-                        <span className="ml-1">
+                        <span className="ml-1 break-all">
                           {line.map((item, i) => (
                             <span key={i}>{item.name}</span>
                           ))}
                         </span>
                       </>
                     ) : (
-                      <span className="ml-5">
+                      <span className="ml-5 break-all">
                         {line.map((item, i) => (
                           <span key={i}>{item.name}</span>
                         ))}
@@ -139,7 +149,7 @@ export default function MomentPreview({ data, showComments = true, width = 375 }
             )}
 
             {data.comments.length > 0 && (
-              <div className="comments">
+              <div className="comments break-all">
                 {data.comments.map((comment, index) => (
                   <div key={index} className="comment-item mb-1 leading-[1.4]">
                     <span className="comment-user text-[#576b95] font-medium">
