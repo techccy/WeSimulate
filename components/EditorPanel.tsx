@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { MomentPost } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -24,9 +24,18 @@ export default function EditorPanel({
   onReset,
 }: EditorPanelProps) {
   const [uploading, setUploading] = useState(false);
-  const { user } = useAuth();
+  const { user, saveDraft } = useAuth();
   const MAX_FILE_SIZE = 5 * 1024 * 1024;
   const [compressModal, setCompressModal] = useState<{ file: File; resolve: (compress: boolean) => void } | null>(null);
+  const [pendingUploads, setPendingUploads] = useState<Map<string, string>>(new Map());
+
+  useEffect(() => {
+    return () => {
+      pendingUploads.forEach((_, url) => {
+        URL.revokeObjectURL(url);
+      });
+    };
+  }, [pendingUploads]);
 
   const compressImage = async (file: File, maxWidth = 1920, quality = 0.8): Promise<File> => {
     return new Promise((resolve) => {
@@ -121,34 +130,65 @@ export default function EditorPanel({
       return;
     }
 
+    const localUrls = filesToUpload.map(file => {
+      const url = URL.createObjectURL(file);
+      setPendingUploads(prev => new Map(prev).set(url, file.name));
+      return url;
+    });
+
+    onChange({ ...data, images: [...data.images, ...localUrls] });
+
     setUploading(true);
 
     try {
-      const uploadPromises = filesToUpload.map(async (file) => {
-        const formData = new FormData();
-        formData.append("file", file);
+      const uploadResults = await Promise.allSettled(
+        filesToUpload.map(async (file, index) => {
+          const formData = new FormData();
+          formData.append("file", file);
 
-        const response = await fetch("/api/upload", {
-          method: "POST",
-          body: formData,
-        });
+          const response = await fetch("/api/upload", {
+            method: "POST",
+            body: formData,
+          });
 
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || `上传失败 (${response.status})`);
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || `上传失败 (${response.status})`);
+          }
+
+          const result = await response.json();
+          return { localUrl: localUrls[index], serverUrl: result.imageUrl };
+        })
+      );
+
+      const successfulUploads: { localUrl: string; serverUrl: string }[] = [];
+      uploadResults.forEach((result, index) => {
+        if (result.status === 'fulfilled') {
+          successfulUploads.push(result.value);
+          setPendingUploads(prev => {
+            const newMap = new Map(prev);
+            newMap.delete(result.value.localUrl);
+            return newMap;
+          });
+        } else {
+          console.error(`上传失败 (${filesToUpload[index].name}):`, result.reason);
         }
-
-        const result = await response.json();
-        return result.imageUrl;
       });
 
-      const newImages = await Promise.all(uploadPromises);
-      onChange({ ...data, images: [...data.images, ...newImages] });
+      if (successfulUploads.length > 0) {
+        const updatedImages = data.images.map(img => {
+          const upload = successfulUploads.find(u => u.localUrl === img);
+          return upload ? upload.serverUrl : img;
+        });
+        const updatedData = { ...data, images: updatedImages };
+        onChange(updatedData);
+        await saveDraft(updatedData);
+      }
     } catch (error) {
       console.error("上传错误:", error);
-      alert(`上传失败: ${error instanceof Error ? error.message : '未知错误'}`);
     } finally {
       setUploading(false);
+      e.target.value = '';
     }
   };
 
@@ -209,6 +249,11 @@ export default function EditorPanel({
       return;
     }
 
+    const localUrl = URL.createObjectURL(filesToUpload[0]);
+    setPendingUploads(prev => new Map(prev).set(localUrl, filesToUpload[0].name));
+
+    onChange({ ...data, avatar: localUrl });
+
     setUploading(true);
 
     try {
@@ -226,12 +271,20 @@ export default function EditorPanel({
       }
 
       const result = await response.json();
-      onChange({ ...data, avatar: result.imageUrl });
+      setPendingUploads(prev => {
+        const newMap = new Map(prev);
+        newMap.delete(localUrl);
+        return newMap;
+      });
+      const updatedData = { ...data, avatar: result.imageUrl };
+      onChange(updatedData);
+      await saveDraft(updatedData);
     } catch (error) {
       console.error("上传错误:", error);
       alert(`上传失败: ${error instanceof Error ? error.message : '未知错误'}`);
     } finally {
       setUploading(false);
+      e.target.value = '';
     }
   };
 
@@ -265,7 +318,9 @@ export default function EditorPanel({
             disabled={uploading}
             className="w-full border rounded px-3 py-2 text-sm"
           />
-          {uploading && <span className="text-xs text-gray-500">上传中...</span>}
+          {pendingUploads.has(data.avatar) && (
+            <span className="text-xs text-gray-500">头像上传中...</span>
+          )}
         </div>
 
         <div>
@@ -309,6 +364,11 @@ export default function EditorPanel({
                     alt={`Preview ${index}`}
                     className="w-full h-20 object-cover rounded border"
                   />
+                  {pendingUploads.has(image) && (
+                    <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+                      <span className="text-white text-xs">上传中...</span>
+                    </div>
+                  )}
                   <button
                     onClick={() => removeImage(index)}
                     className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 text-xs leading-none"
